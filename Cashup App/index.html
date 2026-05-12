@@ -1,0 +1,2494 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1e3a8a">
+
+    <link rel="apple-touch-icon" href="RC.jpeg">
+    <link rel="apple-touch-icon" sizes="152x152" href="RC.jpeg">
+    <link rel="apple-touch-icon" sizes="180x180" href="RC.jpeg">
+    <link rel="apple-touch-icon" sizes="167x167" href="RC.jpeg">
+    <link rel="icon" type="image/jpeg" sizes="192x192" href="RC.jpeg">
+    <link rel="icon" type="image/jpeg" sizes="512x512" href="RC.jpeg">
+    <link rel="shortcut icon" href="RC.jpeg">
+
+    <title>IT Workshop Manager</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        :root {
+            --primary: #1e3a8a;
+            --primary-light: #3b82f6;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --todoist-red: #e44332;
+            --invoice-gold: #d97706;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 100px;
+        }
+
+        .sync-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--success);
+            z-index: 9999;
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+        }
+
+        .sync-indicator.active {
+            transform: scaleX(1);
+        }
+
+        .sync-indicator.error {
+            background: var(--danger);
+        }
+
+        .app-header {
+            background: var(--primary);
+            color: white;
+            padding: 24px 20px 32px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .app-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sync-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        .sync-dot.offline {
+            background: var(--danger);
+        }
+
+        .app-header p {
+            font-size: 15px;
+            opacity: 0.8;
+        }
+
+        .tab-bar {
+            display: flex;
+            background: white;
+            padding: 4px;
+            margin: -20px 16px 16px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            position: relative;
+            z-index: 101;
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 8px;
+            border: none;
+            background: transparent;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            white-space: nowrap;
+            min-width: 70px;
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 2px 8px rgba(30, 58, 138, 0.3);
+        }
+
+        .section {
+            display: none;
+            padding: 0 16px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 20px;
+            padding: 24px 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 20px;
+        }
+
+        .card-title.gold {
+            color: var(--invoice-gold);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .form-input,
+        .form-textarea,
+        .form-select {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            font-size: 16px;
+            color: var(--text);
+            background: #f8fafc;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus,
+        .form-textarea:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: var(--primary-light);
+            background: white;
+        }
+
+        .form-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .highlight-box {
+            background: #fff7ed;
+            border: 2px dashed #fdba74;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .highlight-box .form-label {
+            color: #c2410c;
+        }
+
+        .highlight-box .form-input {
+            background: white;
+            border-color: #fed7aa;
+        }
+
+        .row-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .row-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 16px;
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-gold {
+            background: var(--invoice-gold);
+            color: white;
+            box-shadow: 0 4px 12px rgba(217, 119, 6, 0.3);
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 12px;
+            border-radius: 10px;
+            width: auto;
+        }
+
+        .task-input-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .task-input {
+            flex: 1;
+            padding: 14px 16px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 16px;
+            background: white;
+        }
+
+        .task-input:focus {
+            outline: none;
+            border-color: var(--todoist-red);
+        }
+
+        .task-add-btn {
+            width: 48px;
+            height: 48px;
+            border: none;
+            border-radius: 12px;
+            background: var(--todoist-red);
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .task-list {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .task-item:hover {
+            background: #f8fafc;
+        }
+
+        .task-item:last-child {
+            border-bottom: none;
+        }
+
+        .task-item.completed {
+            display: none;
+        }
+
+        .task-item.removing {
+            animation: taskSlideOut 0.3s ease forwards;
+        }
+
+        @keyframes taskSlideOut {
+            0% {
+                opacity: 1;
+                transform: translateX(0);
+                max-height: 80px;
+                padding: 16px;
+                margin: 0;
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateX(100%);
+                max-height: 0;
+                padding: 0 16px;
+                margin: 0;
+                border-bottom: none;
+            }
+        }
+
+        .task-checkbox {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--text-light);
+            border-radius: 50%;
+            cursor: pointer;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .task-item.completed .task-checkbox {
+            background: var(--todoist-red);
+            border-color: var(--todoist-red);
+        }
+
+        .task-item.completed .task-checkbox::after {
+            content: '✓';
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .task-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .task-text {
+            font-size: 15px;
+            color: var(--text);
+            margin-bottom: 4px;
+            word-break: break-word;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .task-tag {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .tag-callout {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .tag-office {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .tag-stock {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .tag-urgent {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .task-assignee {
+            font-size: 11px;
+            color: var(--text-light);
+            font-weight: 600;
+        }
+
+        .task-priority {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .priority-1 {
+            background: var(--todoist-red);
+        }
+
+        .priority-2 {
+            background: #ff9a14;
+        }
+
+        .priority-3 {
+            background: #316fea;
+        }
+
+        .priority-4 {
+            background: var(--border);
+        }
+
+        .task-delete {
+            color: var(--text-light);
+            font-size: 18px;
+            padding: 4px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .task-item:hover .task-delete {
+            opacity: 1;
+        }
+
+        .task-filters {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+        }
+
+        .task-filter-btn {
+            padding: 6px 14px;
+            border: 2px solid var(--border);
+            background: white;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-light);
+            cursor: pointer;
+            white-space: nowrap;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .task-filter-btn.active {
+            background: var(--todoist-red);
+            color: white;
+            border-color: var(--todoist-red);
+        }
+
+        .utility-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .utility-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            border: 2px solid var(--border);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .utility-card.ok {
+            border-color: var(--success);
+            background: #f0fdf4;
+        }
+
+        .utility-card.low {
+            border-color: var(--warning);
+            background: #fffbeb;
+        }
+
+        .utility-card.critical {
+            border-color: var(--danger);
+            background: #fef2f2;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.02);
+            }
+        }
+
+        .utility-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .utility-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .utility-status {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .utility-card.ok .utility-status {
+            color: var(--success);
+        }
+
+        .utility-card.low .utility-status {
+            color: var(--warning);
+        }
+
+        .utility-card.critical .utility-status {
+            color: var(--danger);
+        }
+
+        .utility-last {
+            font-size: 11px;
+            color: var(--text-light);
+            margin-top: 8px;
+        }
+
+        .stock-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+        }
+
+        .stock-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .stock-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .stock-qty {
+            font-size: 13px;
+            color: var(--text-light);
+            margin-top: 2px;
+        }
+
+        .stock-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .stock-btn {
+            width: 36px;
+            height: 36px;
+            border: 2px solid var(--border);
+            background: white;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stock-count {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .stock-low {
+            color: var(--danger);
+        }
+
+        .stock-delete {
+            color: var(--danger);
+            font-size: 20px;
+            padding: 8px;
+            cursor: pointer;
+            margin-left: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .stock-item:hover .stock-delete {
+            opacity: 1;
+        }
+
+        .booking-item {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--border);
+            transition: all 0.2s;
+        }
+
+        .booking-item.todo {
+            border-left-color: var(--warning);
+        }
+
+        .booking-item.pending {
+            border-left-color: var(--primary-light);
+        }
+
+        .booking-item.completed {
+            border-left-color: var(--success);
+        }
+
+        .booking-item.removing {
+            animation: bookingSlideOut 0.3s ease forwards;
+        }
+
+        @keyframes bookingSlideOut {
+            0% {
+                opacity: 1;
+                transform: translateX(0);
+                max-height: 300px;
+                padding: 20px;
+                margin-bottom: 12px;
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateX(100%);
+                max-height: 0;
+                padding: 0 20px;
+                margin-bottom: 0;
+                border-left-width: 0;
+            }
+        }
+
+        .booking-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .booking-id {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-light);
+            background: var(--bg);
+            padding: 4px 10px;
+            border-radius: 8px;
+        }
+
+        .booking-status {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
+
+        .status-todo {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-pending {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-completed {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .booking-device {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .booking-customer {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-bottom: 12px;
+        }
+
+        .booking-desc {
+            font-size: 14px;
+            color: var(--text);
+            line-height: 1.5;
+            margin-bottom: 16px;
+            padding: 12px;
+            background: var(--bg);
+            border-radius: 12px;
+        }
+
+        .booking-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .booking-price {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .booking-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .tender-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tender-row:last-child {
+            border-bottom: none;
+        }
+
+        .tender-label {
+            font-size: 16px;
+            font-weight: 600;
+            min-width: 60px;
+        }
+
+        .tender-input {
+            width: 90px;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 18px;
+            text-align: center;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .tender-value {
+            font-size: 15px;
+            color: var(--text-light);
+            min-width: 80px;
+            text-align: right;
+            font-weight: 600;
+        }
+
+        .total-box {
+            background: #f0fdf4;
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+        }
+
+        .total-box.card-bg {
+            background: #eff6ff;
+        }
+
+        .total-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-light);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .total-amount {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--success);
+        }
+
+        .total-box.card-bg .total-amount {
+            color: var(--primary);
+        }
+
+        .grand-total {
+            background: var(--primary);
+            color: white;
+            padding: 24px;
+            border-radius: 20px;
+            text-align: center;
+            margin-top: 16px;
+        }
+
+        .grand-total-amount {
+            font-size: 36px;
+            font-weight: 800;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid var(--border);
+            background: white;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-light);
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-light);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 16px;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+            z-index: 1000;
+        }
+
+        .bottom-bar-inner {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: flex-end;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            width: 100%;
+            max-width: 500px;
+            border-radius: 24px 24px 0 0;
+            padding: 24px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+            }
+
+            to {
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            font-size: 24px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-light);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s;
+        }
+
+        .loading-overlay.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            margin-top: 16px;
+            color: var(--text-light);
+            font-weight: 600;
+        }
+
+        /* ===== INVOICE STYLES ===== */
+        .invoice-item {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--invoice-gold);
+            transition: all 0.2s;
+        }
+
+        .invoice-item.paid {
+            border-left-color: var(--success);
+            opacity: 0.7;
+        }
+
+        .invoice-item.overdue {
+            border-left-color: var(--danger);
+            background: #fef2f2;
+        }
+
+        .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .invoice-date {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-light);
+            background: var(--bg);
+            padding: 4px 10px;
+            border-radius: 8px;
+        }
+
+        .invoice-status {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
+
+        .status-unpaid {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-paid {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-overdue {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .invoice-client {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .invoice-phone {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-bottom: 12px;
+        }
+
+        .invoice-job {
+            font-size: 14px;
+            color: var(--text);
+            line-height: 1.5;
+            margin-bottom: 16px;
+            padding: 12px;
+            background: var(--bg);
+            border-radius: 12px;
+        }
+
+        .invoice-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .invoice-amount {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--invoice-gold);
+        }
+
+        .invoice-amount.paid {
+            color: var(--success);
+            text-decoration: line-through;
+        }
+
+        .invoice-days {
+            font-size: 12px;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: var(--bg);
+            color: var(--text-light);
+        }
+
+        .invoice-days.overdue {
+            background: #fee2e2;
+            color: var(--danger);
+        }
+
+        .invoice-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .invoice-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 20px;
+            margin-bottom: 12px;
+        }
+
+        .badge-reminder {
+            background: #dbeafe;
+            color: var(--primary);
+        }
+
+        .sheet-sync-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #f0fdf4;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--success);
+        }
+
+        .sheet-sync-status.error {
+            background: #fef2f2;
+            color: var(--danger);
+        }
+
+        .sheet-sync-status.syncing {
+            background: #fffbeb;
+            color: var(--warning);
+        }
+    </style>
+    <base target="_blank">
+</head>
+
+<body>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Syncing with cloud...</div>
+    </div>
+
+    <!-- Sync Indicator Bar -->
+    <div class="sync-indicator" id="syncIndicator"></div>
+
+    <div class="app-header">
+        <h1 id="headerTitle"><span class="sync-dot" id="syncDot"></span> IT Workshop</h1>
+        <p id="headerSubtitle">Daily Operations</p>
+    </div>
+
+    <!-- TABS -->
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('tasks', this)">✅ Tasks</button>
+        <button class="tab-btn" onclick="switchTab('bookings', this)">🔧 Jobs</button>
+        <button class="tab-btn" onclick="switchTab('cashup', this)">💰 Cash</button>
+        <button class="tab-btn" onclick="switchTab('stock', this)">📦 Stock</button>
+        <button class="tab-btn" onclick="switchTab('utilities', this)">⚡ Utils</button>
+        <button class="tab-btn" onclick="switchTab('invoices', this)">🧾 Invoices</button>
+    </div>
+
+    <!-- ===== TASKS SECTION ===== -->
+    <div id="tasks" class="section active">
+        <div class="card">
+            <div class="card-title">Add Task</div>
+            <div class="task-input-bar">
+                <input type="text" class="task-input" id="taskInput" placeholder="What needs to be done?"
+                    onkeypress="if(event.key==='Enter')addTask()">
+                <button class="task-add-btn" onclick="addTask()">+</button>
+            </div>
+
+            <div class="row-3">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <select class="form-select" id="taskCategory" style="padding: 10px; font-size: 13px;">
+                        <option value="callout">Call Out</option>
+                        <option value="office">Office Work</option>
+                        <option value="stock">Stock Run</option>
+                        <option value="urgent">Urgent</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <select class="form-select" id="taskAssignee" style="padding: 10px; font-size: 13px;">
+                        <option value="Josua">Josua</option>
+                        <option value="Reino">Reino</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <select class="form-select" id="taskPriority" style="padding: 10px; font-size: 13px;">
+                        <option value="1">P1 - Urgent</option>
+                        <option value="2">P2 - High</option>
+                        <option value="3">P3 - Normal</option>
+                        <option value="4">P4 - Low</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="task-filters">
+            <button class="task-filter-btn active" onclick="filterTasks('all', this)">All</button>
+            <button class="task-filter-btn" onclick="filterTasks('active', this)">Active</button>
+            <button class="task-filter-btn" onclick="filterTasks('completed', this)">Completed</button>
+            <button class="task-filter-btn" onclick="filterTasks('Josua', this)">Josua</button>
+            <button class="task-filter-btn" onclick="filterTasks('Reino', this)">Reino</button>
+        </div>
+
+        <div class="task-list" id="taskList"></div>
+        <div style="height: 20px;"></div>
+    </div>
+
+    <!-- ===== BOOKINGS SECTION ===== -->
+    <div id="bookings" class="section">
+        <div class="filter-bar">
+            <button class="filter-btn active" onclick="filterBookings('all', this)">All</button>
+            <button class="filter-btn" onclick="filterBookings('todo', this)">To Do</button>
+            <button class="filter-btn" onclick="filterBookings('pending', this)">Pending</button>
+            <button class="filter-btn" onclick="filterBookings('completed', this)">Completed</button>
+        </div>
+        <div id="bookingsList"></div>
+
+        <button class="btn btn-primary" onclick="switchTab('newbooking', null)" style="margin-bottom: 24px;">➕ New Job
+            Card</button>
+    </div>
+
+    <!-- ===== CASHUP SECTION ===== -->
+    <div id="cashup" class="section">
+        <div class="card">
+            <div class="card-title">👤 Technician</div>
+            <input type="text" class="form-input" id="techName" placeholder="Your name" value="Josua">
+        </div>
+
+        <div class="card">
+            <div class="card-title">🪙 Cash Tenders</div>
+            <div id="tendersContainer"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">💳 Card Payments</div>
+            <input type="number" class="form-input" id="cardTotal" placeholder="0.00" step="0.01"
+                oninput="calculateTotals()">
+        </div>
+
+        <div class="card">
+            <div class="card-title">📊 Daily Totals</div>
+            <div class="row-2">
+                <div class="total-box">
+                    <div class="total-label">Cash</div>
+                    <div class="total-amount" id="cashTotal">R0.00</div>
+                </div>
+                <div class="total-box card-bg">
+                    <div class="total-label">Card</div>
+                    <div class="total-amount" id="cardDisplay">R0.00</div>
+                </div>
+            </div>
+            <div class="grand-total">
+                <div class="total-label" style="color: rgba(255,255,255,0.8);">Grand Total</div>
+                <div class="grand-total-amount" id="grandTotal">R0.00</div>
+            </div>
+        </div>
+
+        <div style="height: 20px;"></div>
+    </div>
+
+    <!-- ===== STOCK SECTION ===== -->
+    <div id="stock" class="section">
+        <div class="card">
+            <div class="card-title">Stock Management</div>
+            <div class="task-input-bar" style="margin-bottom: 16px;">
+                <input type="text" class="task-input" id="stockNameInput" placeholder="Add new stock item..."
+                    onkeypress="if(event.key==='Enter')addStockItem()">
+                <button class="task-add-btn" style="background: var(--primary);" onclick="addStockItem()">+</button>
+            </div>
+            <div id="stockList"></div>
+        </div>
+        <div style="height: 20px;"></div>
+    </div>
+
+    <!-- ===== UTILITIES SECTION ===== -->
+    <div id="utilities" class="section">
+        <div class="card">
+            <div class="card-title">Office Utilities</div>
+            <p style="font-size: 14px; color: var(--text-light); margin-bottom: 16px;">Tap an item to update its status.
+                Critical items pulse red.</p>
+            <div class="utility-grid" id="utilityGrid"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Utility History</div>
+            <div id="utilityHistory"></div>
+        </div>
+        <div style="height: 20px;"></div>
+    </div>
+
+    <!-- ===== INVOICES SECTION ===== -->
+    <div id="invoices" class="section">
+        <div class="card">
+            <div class="card-title gold">🧾 New Invoice</div>
+            <div class="sheet-sync-status" id="invoiceSyncStatus">
+                <span>📡</span> Connected to Google Sheets
+            </div>
+            <form id="invoiceForm" onsubmit="saveInvoice(event)">
+                <div class="row-2">
+                    <div class="form-group">
+                        <label class="form-label">First Name</label>
+                        <input type="text" class="form-input" id="invName" placeholder="John" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Surname</label>
+                        <input type="text" class="form-input" id="invSurname" placeholder="Doe" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Phone Number</label>
+                    <input type="tel" class="form-input" id="invPhone" placeholder="082 123 4567" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Job Description</label>
+                    <input type="text" class="form-input" id="invJob" placeholder="Screen replacement, data recovery..."
+                        required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Invoice Amount (R)</label>
+                    <input type="number" class="form-input" id="invAmount" placeholder="e.g. 1250.00" step="0.01"
+                        required>
+                </div>
+                <button type="submit" class="btn btn-gold">➕ Add Invoice to Sheet</button>
+            </form>
+        </div>
+
+        <div class="filter-bar">
+            <button class="filter-btn active" onclick="filterInvoices('all', this)">All</button>
+            <button class="filter-btn" onclick="filterInvoices('unpaid', this)">Unpaid</button>
+            <button class="filter-btn" onclick="filterInvoices('paid', this)">Paid</button>
+            <button class="filter-btn" onclick="filterInvoices('overdue', this)">🔴 Overdue</button>
+        </div>
+
+        <div id="invoicesList"></div>
+        <div style="height: 20px;"></div>
+    </div>
+
+    <!-- ===== NEW BOOKING SECTION ===== -->
+    <div id="newbooking" class="section">
+        <form id="bookingForm" onsubmit="saveBooking(event)">
+            <div class="card">
+                <div class="card-title">Customer Details</div>
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" class="form-input" id="custName" placeholder="John Doe" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Contact Number</label>
+                    <input type="tel" class="form-input" id="custPhone" placeholder="082 123 4567" required>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Hardware Info</div>
+                <div class="form-group">
+                    <label class="form-label">Device Brand & Model</label>
+                    <input type="text" class="form-input" id="deviceModel" placeholder="MacBook Pro / Dell G15"
+                        required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Serial Number</label>
+                    <input type="text" class="form-input" id="serialNum" placeholder="S/N: 12345ABC">
+                </div>
+                <div class="highlight-box">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Device Password</label>
+                        <input type="text" class="form-input" id="devicePass" placeholder="Pattern or PIN">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Job Description</div>
+                <div class="form-group">
+                    <textarea class="form-textarea" id="jobDesc" placeholder="Describe the issue in detail..."
+                        required></textarea>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Financials</div>
+                <div class="row-2">
+                    <div class="form-group">
+                        <label class="form-label">Quote</label>
+                        <input type="number" class="form-input" id="quoteAmount" placeholder="e.g. 690" step="0.01"
+                            required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Deposit</label>
+                        <input type="number" class="form-input" id="depositAmount" placeholder="e.g. 0.00" step="0.01">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Status</div>
+                <select class="form-select" id="jobStatus">
+                    <option value="todo">To Do</option>
+                    <option value="pending">Pending</option>
+                    <option value="completed">Completed</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="margin-bottom: 24px;">Finalize Job Card</button>
+        </form>
+    </div>
+
+    <!-- ===== EDIT MODAL ===== -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Edit Job Card</div>
+                <button class="modal-close" onclick="closeModal()">✕</button>
+            </div>
+            <form id="editForm" onsubmit="updateBooking(event)">
+                <input type="hidden" id="editId">
+                <div class="form-group">
+                    <label class="form-label">Customer</label>
+                    <input type="text" class="form-input" id="editCustName" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Device</label>
+                    <input type="text" class="form-input" id="editDevice" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-textarea" id="editDesc" required></textarea>
+                </div>
+                <div class="row-2">
+                    <div class="form-group">
+                        <label class="form-label">Quote</label>
+                        <input type="number" class="form-input" id="editQuote" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Deposit</label>
+                        <input type="number" class="form-input" id="editDeposit" step="0.01">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" id="editStatus">
+                        <option value="todo">To Do</option>
+                        <option value="pending">Pending</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Job</button>
+                <button type="button" class="btn btn-danger" style="margin-top: 8px;" onclick="deleteBooking()">Delete
+                    Job</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===== BOTTOM BAR ===== -->
+    <div class="bottom-bar">
+        <div class="bottom-bar-inner">
+            <button class="btn btn-primary" onclick="exportAll()">📥 Export Daily Report</button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // 🔥 FIREBASE CONFIGURATION
+        // ============================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyAaHaARiOFV_10UPoM6PtpA8uCWdu1uNSE",
+            authDomain: "r-and-c-workshop-app.firebaseapp.com",
+            databaseURL: "https://r-and-c-workshop-app-default-rtdb.firebaseio.com",
+            projectId: "r-and-c-workshop-app",
+            storageBucket: "r-and-c-workshop-app.firebasestorage.app",
+            messagingSenderId: "691339631464",
+            appId: "1:691339631464:web:d3fa277c1cad9425d394dd"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // ============================================
+        // 📦 GOOGLE APPS SCRIPT CONFIG
+        // ============================================
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbw89wEfwpSsLi5jGvAgksgJFFEffrnQpQ3miUB_twrdk8OFo9VQT33NYNArcXPG7q16/exec';
+        // ============================================
+        // 📦 DATA VARIABLES
+        // ============================================
+        const tenders = [
+            { value: 200, label: 'R200' },
+            { value: 100, label: 'R100' },
+            { value: 50, label: 'R50' },
+            { value: 20, label: 'R20' },
+            { value: 10, label: 'R10' },
+            { value: 5, label: 'R5' },
+            { value: 2, label: 'R2' },
+            { value: 1, label: 'R1' },
+            { value: 0.50, label: '50c' },
+            { value: 0.20, label: '20c' },
+            { value: 0.10, label: '10c' }
+        ];
+
+        const defaultUtilities = [
+            { id: 'toilet', name: 'Toilet Paper', icon: '🧻', status: 'ok', lastCheck: null, lastBy: '' },
+            { id: 'cleaning', name: 'Cleaning Supplies', icon: '🧼', status: 'ok', lastCheck: null, lastBy: '' },
+            { id: 'electricity', name: 'Electricity', icon: '⚡', status: 'ok', lastCheck: null, lastBy: '' }
+        ];
+
+        let bookings = [];
+        let tasks = [];
+        let utilities = [];
+        let stockItems = [];
+        let invoices = [];
+        let currentFilter = 'all';
+        let currentTaskFilter = 'all';
+        let currentInvoiceFilter = 'all';
+        let isOnline = true;
+        let pendingWrites = 0;
+        let dataLoaded = { bookings: false, tasks: false, utilities: false, stock: false };
+
+        // ============================================
+        // 🔌 CONNECTION & SYNC MANAGEMENT
+        // ============================================
+        const connectedRef = db.ref('.info/connected');
+        connectedRef.on('value', (snap) => {
+            isOnline = snap.val() === true;
+            updateSyncIndicator();
+        });
+
+        function updateSyncIndicator() {
+            const dot = document.getElementById('syncDot');
+            const indicator = document.getElementById('syncIndicator');
+            if (isOnline && pendingWrites === 0) {
+                dot.classList.remove('offline');
+                dot.style.background = 'var(--success)';
+                indicator.classList.remove('error');
+                indicator.classList.remove('active');
+            } else if (isOnline && pendingWrites > 0) {
+                dot.style.background = 'var(--warning)';
+                indicator.classList.add('active');
+            } else {
+                dot.classList.add('offline');
+                indicator.classList.add('error');
+                indicator.classList.add('active');
+            }
+        }
+
+        function showSyncPulse() {
+            const indicator = document.getElementById('syncIndicator');
+            indicator.classList.add('active');
+            setTimeout(() => {
+                if (pendingWrites === 0 && isOnline) indicator.classList.remove('active');
+            }, 800);
+        }
+
+        function safeWrite(refPath, data, retries = 3) {
+            pendingWrites++;
+            updateSyncIndicator();
+            const doWrite = () => {
+                return db.ref(refPath).set(data)
+                    .then(() => {
+                        pendingWrites--;
+                        updateSyncIndicator();
+                        showSyncPulse();
+                        return true;
+                    })
+                    .catch((error) => {
+                        console.error(`Write failed to ${refPath}:`, error);
+                        if (retries > 0 && isOnline) {
+                            retries--;
+                            return new Promise(resolve => setTimeout(resolve, 1000)).then(doWrite);
+                        } else {
+                            pendingWrites--;
+                            updateSyncIndicator();
+                            alert(`Failed to save data. Check connection and try again.\nError: ${error.message}`);
+                            throw error;
+                        }
+                    });
+            };
+            return doWrite();
+        }
+
+        function safeUpdate(refPath, updates, retries = 3) {
+            pendingWrites++;
+            updateSyncIndicator();
+            const doUpdate = () => {
+                return db.ref(refPath).update(updates)
+                    .then(() => {
+                        pendingWrites--;
+                        updateSyncIndicator();
+                        showSyncPulse();
+                        return true;
+                    })
+                    .catch((error) => {
+                        console.error(`Update failed on ${refPath}:`, error);
+                        if (retries > 0 && isOnline) {
+                            retries--;
+                            return new Promise(resolve => setTimeout(resolve, 1000)).then(doUpdate);
+                        } else {
+                            pendingWrites--;
+                            updateSyncIndicator();
+                            alert(`Failed to update data. Check connection.\nError: ${error.message}`);
+                            throw error;
+                        }
+                    });
+            };
+            return doUpdate();
+        }
+
+        function safeDelete(refPath, retries = 3) {
+            pendingWrites++;
+            updateSyncIndicator();
+            const doDelete = () => {
+                return db.ref(refPath).remove()
+                    .then(() => {
+                        pendingWrites--;
+                        updateSyncIndicator();
+                        showSyncPulse();
+                        return true;
+                    })
+                    .catch((error) => {
+                        console.error(`Delete failed on ${refPath}:`, error);
+                        if (retries > 0 && isOnline) {
+                            retries--;
+                            return new Promise(resolve => setTimeout(resolve, 1000)).then(doDelete);
+                        } else {
+                            pendingWrites--;
+                            updateSyncIndicator();
+                            alert(`Failed to delete data. Check connection.\nError: ${error.message}`);
+                            throw error;
+                        }
+                    });
+            };
+            return doDelete();
+        }
+
+        // ============================================
+        // 🔌 FIREBASE LISTENERS
+        // ============================================
+        function checkAllDataLoaded() {
+            if (dataLoaded.bookings && dataLoaded.tasks && dataLoaded.utilities && dataLoaded.stock) {
+                const overlay = document.getElementById('loadingOverlay');
+                overlay.classList.add('fade-out');
+                setTimeout(() => overlay.style.display = 'none', 300);
+            }
+        }
+
+        db.ref('bookings').on('value', (snapshot) => {
+            bookings = [];
+            snapshot.forEach((child) => bookings.push(child.val()));
+            bookings.sort((a, b) => b.id - a.id);
+            dataLoaded.bookings = true;
+            renderBookings();
+            checkAllDataLoaded();
+            showSyncPulse();
+        }, (error) => {
+            console.error('Bookings listener error:', error);
+            dataLoaded.bookings = true;
+            checkAllDataLoaded();
+        });
+
+        db.ref('tasks').on('value', (snapshot) => {
+            tasks = [];
+            snapshot.forEach((child) => tasks.push(child.val()));
+            tasks.sort((a, b) => b.id - a.id);
+            dataLoaded.tasks = true;
+            renderTasks();
+            checkAllDataLoaded();
+            showSyncPulse();
+        }, (error) => {
+            console.error('Tasks listener error:', error);
+            dataLoaded.tasks = true;
+            checkAllDataLoaded();
+        });
+
+        db.ref('utilities').on('value', (snapshot) => {
+            utilities = [];
+            if (snapshot.exists()) snapshot.forEach((child) => utilities.push(child.val()));
+            dataLoaded.utilities = true;
+            renderUtilities();
+            checkAllDataLoaded();
+            showSyncPulse();
+        }, (error) => {
+            console.error('Utilities listener error:', error);
+            dataLoaded.utilities = true;
+            checkAllDataLoaded();
+        });
+
+        db.ref('stock').on('value', (snapshot) => {
+            stockItems = [];
+            snapshot.forEach((child) => stockItems.push(child.val()));
+            dataLoaded.stock = true;
+            renderStock();
+            checkAllDataLoaded();
+            showSyncPulse();
+        }, (error) => {
+            console.error('Stock listener error:', error);
+            dataLoaded.stock = true;
+            checkAllDataLoaded();
+        });
+
+        db.ref('utilities').once('value').then((snapshot) => {
+            if (!snapshot.exists()) {
+                const updates = {};
+                defaultUtilities.forEach(u => updates[u.id] = u);
+                return db.ref('utilities').update(updates);
+            }
+        }).catch(err => console.error('Failed to init utilities:', err));
+
+        setTimeout(() => {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay && overlay.style.display !== 'none') {
+                overlay.classList.add('fade-out');
+                setTimeout(() => overlay.style.display = 'none', 300);
+            }
+        }, 10000);
+
+        // ============================================
+        // 🚀 INITIALIZATION
+        // ============================================
+        function init() {
+            const now = new Date();
+            const options = { day: 'numeric', month: 'long' };
+            const dateStr = now.toLocaleDateString('en-ZA', options);
+            document.getElementById('headerSubtitle').textContent = dateStr;
+
+            const container = document.getElementById('tendersContainer');
+            tenders.forEach((tender, index) => {
+                const row = document.createElement('div');
+                row.className = 'tender-row';
+                row.innerHTML = `
+                    <span class="tender-label">${tender.label}</span>
+                    <input type="number" class="tender-input" id="tender-${index}" placeholder="0" min="0" oninput="calculateTotals()" inputmode="numeric">
+                    <span class="tender-value" id="value-${index}">R0.00</span>
+                `;
+                container.appendChild(row);
+            });
+
+            loadInvoices();
+        }
+
+        // ============================================
+        // 📑 TABS
+        // ============================================
+        function switchTab(tab, btn) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
+            if (btn) btn.classList.add('active');
+
+            const titles = {
+                tasks: ['✅ Tasks', 'Task Manager'],
+                bookings: ['🔧 Jobs', 'Workshop Jobs'],
+                cashup: ['💰 Cashup', 'Daily Cashup'],
+                stock: ['📦 Stock', 'Stock Management'],
+                utilities: ['⚡ Utils', 'Office Utilities'],
+                invoices: ['🧾 Invoices', 'Invoice Tracker'],
+                newbooking: ['➕ New Job', 'Create Job Card']
+            };
+            document.getElementById('headerTitle').innerHTML = `<span class="sync-dot" id="syncDot"></span> ${titles[tab][0]}`;
+            document.getElementById('headerSubtitle').textContent = titles[tab][1];
+
+            if (tab === 'invoices') loadInvoices();
+        }
+
+        // ============================================
+        // 💰 CASHUP
+        // ============================================
+        function calculateTotals() {
+            let cashTotal = 0;
+            tenders.forEach((tender, index) => {
+                const qty = parseInt(document.getElementById(`tender-${index}`).value) || 0;
+                const subtotal = qty * tender.value;
+                cashTotal += subtotal;
+                document.getElementById(`value-${index}`).textContent = `R${subtotal.toFixed(2)}`;
+            });
+
+            const cardTotal = parseFloat(document.getElementById('cardTotal').value) || 0;
+            const grandTotal = cashTotal + cardTotal;
+
+            document.getElementById('cashTotal').textContent = `R${cashTotal.toFixed(2)}`;
+            document.getElementById('cardDisplay').textContent = `R${cardTotal.toFixed(2)}`;
+            document.getElementById('grandTotal').textContent = `R${grandTotal.toFixed(2)}`;
+        }
+
+        // ============================================
+        // ✅ TASKS
+        // ============================================
+        function addTask() {
+            const text = document.getElementById('taskInput').value.trim();
+            if (!text) return;
+
+            const taskRef = db.ref('tasks').push();
+            const id = taskRef.key;
+            const task = {
+                id: id,
+                text: text,
+                category: document.getElementById('taskCategory').value,
+                assignee: document.getElementById('taskAssignee').value,
+                priority: document.getElementById('taskPriority').value,
+                completed: false,
+                created: new Date().toISOString()
+            };
+
+            safeWrite('tasks/' + id, task).then(() => {
+                document.getElementById('taskInput').value = '';
+            }).catch(() => { });
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('taskList');
+            container.innerHTML = '';
+
+            let filtered = tasks;
+            if (currentTaskFilter === 'active') filtered = tasks.filter(t => !t.completed);
+            else if (currentTaskFilter === 'completed') filtered = tasks.filter(t => t.completed);
+            else if (currentTaskFilter === 'Josua' || currentTaskFilter === 'Reino') filtered = tasks.filter(t => t.assignee === currentTaskFilter);
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <div>No tasks found</div>
+                    </div>
+                `;
+                return;
+            }
+
+            filtered.forEach(t => {
+                const tags = { callout: 'tag-callout', office: 'tag-office', stock: 'tag-stock', urgent: 'tag-urgent' };
+                const div = document.createElement('div');
+                div.className = `task-item ${t.completed ? 'completed' : ''}`;
+                div.id = `task-${t.id}`;
+                div.innerHTML = `
+                    <div class="task-checkbox" onclick="event.stopPropagation(); toggleTask('${t.id}')"></div>
+                    <div class="priority-${t.priority} task-priority"></div>
+                    <div class="task-content">
+                        <div class="task-text">${escapeHtml(t.text)}</div>
+                        <div class="task-meta">
+                            <span class="task-tag ${tags[t.category] || 'tag-office'}">${t.category}</span>
+                            <span class="task-assignee">👤 ${t.assignee}</span>
+                        </div>
+                    </div>
+                    <div class="task-delete" onclick="event.stopPropagation(); deleteTask('${t.id}')">🗑️</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function toggleTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+
+            const newCompleted = !task.completed;
+            const updates = {
+                completed: newCompleted,
+                completedAt: newCompleted ? new Date().toISOString() : null
+            };
+
+            safeUpdate('tasks/' + id, updates).then(() => {
+                const el = document.getElementById(`task-${id}`);
+                if (el && currentTaskFilter !== 'all') {
+                    el.classList.add('removing');
+                    setTimeout(() => el.style.display = 'none', 300);
+                }
+            }).catch(() => { });
+        }
+
+        function deleteTask(id) {
+            const el = document.getElementById(`task-${id}`);
+            if (el) {
+                el.classList.add('removing');
+                setTimeout(() => safeDelete('tasks/' + id).catch(() => { }), 300);
+            } else {
+                safeDelete('tasks/' + id).catch(() => { });
+            }
+        }
+
+        function filterTasks(filter, btn) {
+            currentTaskFilter = filter;
+            document.querySelectorAll('.task-filter-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            renderTasks();
+        }
+
+        // ============================================
+        // ⚡ UTILITIES
+        // ============================================
+        function renderUtilities() {
+            const grid = document.getElementById('utilityGrid');
+            if (utilities.length === 0) {
+                grid.innerHTML = '<div class="empty-state" style="padding: 20px;"><div>Loading...</div></div>';
+                return;
+            }
+
+            grid.innerHTML = utilities.map(u => `
+                <div class="utility-card ${u.status}" onclick="cycleUtilityStatus('${u.id}')">
+                    <div class="utility-icon">${u.icon}</div>
+                    <div class="utility-name">${escapeHtml(u.name)}</div>
+                    <div class="utility-status">${u.status.toUpperCase()}</div>
+                    <div class="utility-last">${u.lastCheck ? `Checked ${new Date(u.lastCheck).toLocaleDateString('en-ZA')} by ${escapeHtml(u.lastBy)}` : 'Never checked'}</div>
+                </div>
+            `).join('');
+
+            const history = document.getElementById('utilityHistory');
+            const historyItems = utilities.filter(u => u.lastCheck).sort((a, b) => new Date(b.lastCheck) - new Date(a.lastCheck));
+
+            if (historyItems.length === 0) {
+                history.innerHTML = '<div class="empty-state" style="padding: 20px;"><div style="font-size: 24px;">📭</div><div style="font-size: 14px;">No history yet</div></div>';
+            } else {
+                history.innerHTML = historyItems.map(u => `
+                    <div class="stock-item">
+                        <div class="stock-info">
+                            <div class="stock-name">${u.icon} ${escapeHtml(u.name)}</div>
+                            <div class="stock-qty">Status: ${u.status.toUpperCase()} • ${escapeHtml(u.lastBy)}</div>
+                        </div>
+                        <div class="stock-count" style="font-size: 12px; color: var(--text-light);">${new Date(u.lastCheck).toLocaleDateString('en-ZA')}</div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function cycleUtilityStatus(id) {
+            const u = utilities.find(item => item.id === id);
+            if (!u) return;
+
+            const cycle = { ok: 'low', low: 'critical', critical: 'ok' };
+            const updates = {
+                status: cycle[u.status] || 'ok',
+                lastCheck: new Date().toISOString(),
+                lastBy: document.getElementById('techName').value || 'Staff'
+            };
+
+            safeUpdate('utilities/' + id, updates).catch(() => { });
+        }
+
+        // ============================================
+        // 📦 STOCK
+        // ============================================
+        function renderStock() {
+            const container = document.getElementById('stockList');
+
+            if (stockItems.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📦</div>
+                        <div>No stock items yet</div>
+                        <div style="font-size: 14px; margin-top: 8px;">Add items like thermal rolls, cables, parts...</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = stockItems.map((item) => `
+                <div class="stock-item" id="stock-${item.id}">
+                    <div class="stock-info">
+                        <div class="stock-name">${escapeHtml(item.name)}</div>
+                        <div class="stock-qty ${item.qty <= item.min ? 'stock-low' : ''}">Min: ${item.min} • ${item.qty <= item.min ? 'LOW STOCK' : 'OK'}</div>
+                    </div>
+                    <div class="stock-controls">
+                        <button class="stock-btn" onclick="adjustStock('${item.id}', -1)">−</button>
+                        <div class="stock-count ${item.qty <= item.min ? 'stock-low' : ''}">${item.qty}</div>
+                        <button class="stock-btn" onclick="adjustStock('${item.id}', 1)">+</button>
+                        <div class="stock-delete" onclick="removeStockItem('${item.id}')">🗑️</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addStockItem() {
+            const name = document.getElementById('stockNameInput').value.trim();
+            if (!name) return;
+
+            const stockRef = db.ref('stock').push();
+            const item = { id: stockRef.key, name: name, qty: 0, min: 5 };
+
+            safeWrite('stock/' + item.id, item).then(() => {
+                document.getElementById('stockNameInput').value = '';
+            }).catch(() => { });
+        }
+
+        function adjustStock(id, delta) {
+            const item = stockItems.find(s => s.id === id);
+            if (!item) return;
+            const newQty = Math.max(0, item.qty + delta);
+            safeUpdate('stock/' + id, { qty: newQty }).catch(() => { });
+        }
+
+        function removeStockItem(id) {
+            const item = stockItems.find(s => s.id === id);
+            if (!item) return;
+            if (confirm(`Remove "${item.name}" from stock?`)) {
+                const el = document.getElementById(`stock-${id}`);
+                if (el) {
+                    el.style.opacity = '0';
+                    el.style.transform = 'translateX(100%)';
+                    setTimeout(() => safeDelete('stock/' + id).catch(() => { }), 200);
+                } else {
+                    safeDelete('stock/' + id).catch(() => { });
+                }
+            }
+        }
+
+        // ============================================
+        // 🧾 INVOICES (Google Sheets Integration)
+        // ============================================
+        function updateInvoiceStatus(status, message) {
+            const el = document.getElementById('invoiceSyncStatus');
+            el.className = 'sheet-sync-status';
+            if (status === 'syncing') el.classList.add('syncing');
+            else if (status === 'error') el.classList.add('error');
+            el.innerHTML = `<span>${status === 'syncing' ? '⏳' : status === 'error' ? '❌' : '✅'}</span> ${message}`;
+        }
+
+        async function loadInvoices() {
+            updateInvoiceStatus('syncing', 'Loading invoices from Sheet...');
+            try {
+                const response = await fetch(GAS_URL + '?action=get');
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+                invoices = Array.isArray(data) ? data : [];
+                renderInvoices();
+                updateInvoiceStatus('ok', `Loaded ${invoices.length} invoice(s) from Google Sheets`);
+            } catch (err) {
+                console.error('Failed to load invoices:', err);
+                updateInvoiceStatus('error', 'Failed to load from Sheet: ' + err.message);
+                invoices = [];
+                renderInvoices();
+            }
+        }
+
+        async function saveInvoice(e) {
+            e.preventDefault();
+
+            const name = document.getElementById('invName').value.trim();
+            const surname = document.getElementById('invSurname').value.trim();
+            const phone = document.getElementById('invPhone').value.trim();
+            const job = document.getElementById('invJob').value.trim();
+            const amount = parseFloat(document.getElementById('invAmount').value) || 0;
+
+            if (!name || !surname || !phone || !job || amount <= 0) {
+                alert('Please fill in all fields correctly.');
+                return;
+            }
+
+            updateInvoiceStatus('syncing', 'Saving to Google Sheets...');
+
+            const payload = {
+                action: 'add',
+                name: name,
+                surname: surname,
+                phone: phone,
+                job: job,
+                amount: amount,
+                paid: 'N'
+            };
+
+            try {
+                const response = await fetch(GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                });
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Unknown error from server');
+                }
+
+                document.getElementById('invoiceForm').reset();
+                updateInvoiceStatus('ok', 'Invoice saved to Google Sheets!');
+                setTimeout(() => loadInvoices(), 800);
+
+            } catch (err) {
+                console.error('Failed to save invoice:', err);
+                updateInvoiceStatus('error', 'Failed to save: ' + err.message);
+                alert('Failed to save invoice. Error: ' + err.message);
+            }
+        }
+
+        async function markInvoicePaid(rowIndex) {
+            if (!confirm('Mark this invoice as paid?')) return;
+
+            updateInvoiceStatus('syncing', 'Updating payment status...');
+
+            const payload = {
+                action: 'update',
+                rowIndex: rowIndex,
+                paid: true
+            };
+
+            try {
+                const response = await fetch(GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                });
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Unknown error');
+                }
+
+                updateInvoiceStatus('ok', 'Invoice marked as paid!');
+                setTimeout(() => loadInvoices(), 800);
+
+            } catch (err) {
+                console.error('Failed to update invoice:', err);
+                updateInvoiceStatus('error', 'Failed to update: ' + err.message);
+                alert('Failed to update invoice. Error: ' + err.message);
+            }
+        }
+
+        function renderInvoices() {
+            const container = document.getElementById('invoicesList');
+            let filtered = invoices;
+            if (currentInvoiceFilter === 'unpaid') filtered = invoices.filter(i => !i.paid);
+            else if (currentInvoiceFilter === 'paid') filtered = invoices.filter(i => i.paid);
+            else if (currentInvoiceFilter === 'overdue') filtered = invoices.filter(i => !i.paid && i.daysOutstanding >= 30);
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🧾</div>
+                        <div>No invoices found</div>
+                        <div style="font-size: 14px; margin-top: 8px;">${currentInvoiceFilter === 'overdue' ? 'No overdue invoices — great!' : 'Add your first invoice above'}</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(inv => {
+                const isOverdue = !inv.paid && inv.daysOutstanding >= 30;
+                const isPaid = inv.paid;
+                return `
+                    <div class="invoice-item ${isPaid ? 'paid' : ''} ${isOverdue ? 'overdue' : ''}" id="invoice-${inv.rowIndex}">
+                        <div class="invoice-header">
+                            <span class="invoice-date">${inv.date || 'No date'}</span>
+                            <span class="invoice-status ${isPaid ? 'status-paid' : isOverdue ? 'status-overdue' : 'status-unpaid'}">
+                                ${isPaid ? 'PAID' : isOverdue ? '🔴 OVERDUE' : 'UNPAID'}
+                            </span>
+                        </div>
+                        ${isOverdue ? '<div class="invoice-badge badge-reminder">📧 Reminder email sent</div>' : ''}
+                        <div class="invoice-client">${escapeHtml(inv.name)} ${escapeHtml(inv.surname)}</div>
+                        <div class="invoice-phone">📞 ${escapeHtml(inv.phone)}</div>
+                        <div class="invoice-job">${escapeHtml(inv.job)}</div>
+                        <div class="invoice-footer">
+                            <div class="invoice-amount ${isPaid ? 'paid' : ''}">R${inv.amount.toFixed(2)}</div>
+                            <div class="invoice-days ${isOverdue ? 'overdue' : ''}">
+                                ${isPaid ? '✓ Settled' : inv.daysOutstanding + ' days'}
+                            </div>
+                        </div>
+                        ${!isPaid ? `
+                            <div class="invoice-actions">
+                                <button class="action-btn" style="background: #dcfce7; color: var(--success);" onclick="markInvoicePaid(${inv.rowIndex})">
+                                    ✓ Mark Paid
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterInvoices(filter, btn) {
+            currentInvoiceFilter = filter;
+            document.querySelectorAll('#invoices .filter-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            renderInvoices();
+        }
+
+        // ============================================
+        // 🔧 BOOKINGS
+        // ============================================
+        function saveBooking(e) {
+            e.preventDefault();
+
+            const bookingRef = db.ref('bookings').push();
+            const id = bookingRef.key;
+            const booking = {
+                id: id,
+                date: new Date().toISOString(),
+                custName: document.getElementById('custName').value.trim(),
+                custPhone: document.getElementById('custPhone').value.trim(),
+                deviceModel: document.getElementById('deviceModel').value.trim(),
+                serialNum: document.getElementById('serialNum').value.trim(),
+                devicePass: document.getElementById('devicePass').value.trim(),
+                jobDesc: document.getElementById('jobDesc').value.trim(),
+                quote: parseFloat(document.getElementById('quoteAmount').value) || 0,
+                deposit: parseFloat(document.getElementById('depositAmount').value) || 0,
+                status: document.getElementById('jobStatus').value
+            };
+
+            safeWrite('bookings/' + id, booking).then(() => {
+                document.getElementById('bookingForm').reset();
+                alert('Job card saved!');
+                document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.getElementById('bookings').classList.add('active');
+                document.querySelectorAll('.tab-btn')[1].classList.add('active');
+                document.getElementById('headerTitle').innerHTML = '<span class="sync-dot" id="syncDot"></span> 🔧 Jobs';
+                document.getElementById('headerSubtitle').textContent = 'Workshop Jobs';
+            }).catch(() => {
+                alert('Failed to save job card. Please try again.');
+            });
+        }
+
+        function renderBookings() {
+            const container = document.getElementById('bookingsList');
+            let filtered = currentFilter === 'all' ? bookings : bookings.filter(b => b.status === currentFilter);
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <div>No jobs found</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(b => `
+                <div class="booking-item ${b.status}" id="booking-${b.id}" onclick="openEdit('${b.id}')">
+                    <div class="booking-header">
+                        <span class="booking-id">#${String(b.id).slice(-4)}</span>
+                        <span class="booking-status status-${b.status}">${b.status}</span>
+                    </div>
+                    <div class="booking-device">${escapeHtml(b.deviceModel)}</div>
+                    <div class="booking-customer">${escapeHtml(b.custName)} • ${escapeHtml(b.custPhone)}</div>
+                    <div class="booking-desc">${escapeHtml(b.jobDesc)}</div>
+                    <div class="booking-footer">
+                        <div class="booking-price">R${b.quote.toFixed(2)}</div>
+                        <div class="booking-actions">
+                            <button class="action-btn" style="background: var(--bg); color: var(--text);" onclick="event.stopPropagation(); changeStatus('${b.id}', 'todo')">To Do</button>
+                            <button class="action-btn" style="background: #dbeafe; color: var(--primary);" onclick="event.stopPropagation(); changeStatus('${b.id}', 'pending')">Pending</button>
+                            <button class="action-btn" style="background: #dcfce7; color: var(--success);" onclick="event.stopPropagation(); markDone('${b.id}')">Done</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterBookings(status, btn) {
+            currentFilter = status;
+            document.querySelectorAll('#bookings .filter-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            renderBookings();
+        }
+
+        function changeStatus(id, status) {
+            safeUpdate('bookings/' + id, { status: status }).catch(() => { });
+        }
+
+        function markDone(id) {
+            safeUpdate('bookings/' + id, { status: 'completed' }).then(() => {
+                const el = document.getElementById(`booking-${id}`);
+                if (el && currentFilter !== 'completed') {
+                    el.classList.add('removing');
+                    setTimeout(() => el.style.display = 'none', 300);
+                }
+            }).catch(() => { });
+        }
+
+        function openEdit(id) {
+            const booking = bookings.find(b => b.id === id);
+            if (!booking) return;
+
+            document.getElementById('editId').value = id;
+            document.getElementById('editCustName').value = booking.custName;
+            document.getElementById('editDevice').value = booking.deviceModel;
+            document.getElementById('editDesc').value = booking.jobDesc;
+            document.getElementById('editQuote').value = booking.quote;
+            document.getElementById('editDeposit').value = booking.deposit;
+            document.getElementById('editStatus').value = booking.status;
+
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').classList.remove('active');
+        }
+
+        function updateBooking(e) {
+            e.preventDefault();
+            const id = document.getElementById('editId').value;
+
+            const updates = {
+                custName: document.getElementById('editCustName').value.trim(),
+                deviceModel: document.getElementById('editDevice').value.trim(),
+                jobDesc: document.getElementById('editDesc').value.trim(),
+                quote: parseFloat(document.getElementById('editQuote').value) || 0,
+                deposit: parseFloat(document.getElementById('editDeposit').value) || 0,
+                status: document.getElementById('editStatus').value
+            };
+
+            safeUpdate('bookings/' + id, updates).then(() => {
+                closeModal();
+            }).catch(() => {
+                alert('Failed to update job. Please try again.');
+            });
+        }
+
+        function deleteBooking() {
+            const id = document.getElementById('editId').value;
+            if (confirm('Delete this job card?')) {
+                safeDelete('bookings/' + id).then(() => {
+                    closeModal();
+                }).catch(() => {
+                    alert('Failed to delete job. Please try again.');
+                });
+            }
+        }
+
+        // ============================================
+        // 📥 EXPORT ALL
+        // ============================================
+        function exportAll() {
+            const techName = document.getElementById('techName').value || 'Technician';
+            const now = new Date();
+            const day = now.getDate();
+            const month = now.toLocaleDateString('en-ZA', { month: 'long' });
+            const fileName = `${day} ${month}.xlsx`;
+            const excelDate = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+
+            const wb = XLSX.utils.book_new();
+
+            const cashupData = [[`${techName} Cash up`, '', '', excelDate], [], ['Tender', 'Qty', 'Value']];
+            let cashTotal = 0;
+            tenders.forEach((tender, index) => {
+                const qty = parseInt(document.getElementById(`tender-${index}`).value) || 0;
+                const value = qty * tender.value;
+                cashTotal += value;
+                cashupData.push([tender.label, qty, `R${value.toFixed(2)}`]);
+            });
+            const cardTotal = parseFloat(document.getElementById('cardTotal').value) || 0;
+            cashupData.push([], [], [], [], ['Cash', `R${cashTotal.toFixed(2)}`], ['Card', `R${cardTotal.toFixed(2)}`]);
+            const ws1 = XLSX.utils.aoa_to_sheet(cashupData);
+            ws1['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 14 }];
+            XLSX.utils.book_append_sheet(wb, ws1, 'Cashup');
+
+            const jobsData = [['Date', 'Job #', 'Customer', 'Contact', 'Device', 'Serial', 'Password', 'Description', 'Quote', 'Deposit', 'Balance', 'Status']];
+            bookings.forEach(b => {
+                const date = new Date(b.date).toLocaleDateString('en-ZA');
+                const balance = b.quote - b.deposit;
+                jobsData.push([date, `#${String(b.id).slice(-4)}`, b.custName, b.custPhone, b.deviceModel, b.serialNum || '', b.devicePass || '', b.jobDesc, `R${b.quote.toFixed(2)}`, `R${b.deposit.toFixed(2)}`, `R${balance.toFixed(2)}`, b.status.toUpperCase()]);
+            });
+            const totalQuote = bookings.reduce((sum, b) => sum + b.quote, 0);
+            const totalDeposit = bookings.reduce((sum, b) => sum + b.deposit, 0);
+            const totalBalance = totalQuote - totalDeposit;
+            jobsData.push([], ['TOTALS', '', '', '', '', '', '', '', `R${totalQuote.toFixed(2)}`, `R${totalDeposit.toFixed(2)}`, `R${totalBalance.toFixed(2)}`, '']);
+            const ws2 = XLSX.utils.aoa_to_sheet(jobsData);
+            ws2['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 18 }, { wch: 14 }, { wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 30 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }];
+            XLSX.utils.book_append_sheet(wb, ws2, 'Job Cards');
+
+            const tasksData = [['Task', 'Category', 'Assignee', 'Priority', 'Status', 'Created']];
+            const todaysTasks = tasks.filter(t => {
+                if (!t.completed) return true;
+                if (!t.completedAt) return false;
+                return new Date(t.completedAt) >= todayStart;
+            });
+            todaysTasks.forEach(t => {
+                tasksData.push([t.text, t.category, t.assignee, `P${t.priority}`, t.completed ? 'Completed' : 'Active', new Date(t.created).toLocaleDateString('en-ZA')]);
+            });
+            const activeTasks = todaysTasks.filter(t => !t.completed).length;
+            const completedTasks = todaysTasks.filter(t => t.completed).length;
+            tasksData.push([], ['SUMMARY', '', '', '', '', ''], ['Active Tasks', activeTasks, '', '', '', ''], ['Completed Today', completedTasks, '', '', '', ''], ['Total on Report', todaysTasks.length, '', '', '', '']);
+            const ws3 = XLSX.utils.aoa_to_sheet(tasksData);
+            ws3['!cols'] = [{ wch: 30 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 12 }];
+            XLSX.utils.book_append_sheet(wb, ws3, 'Tasks');
+
+            const utilsData = [['Type', 'Item', 'Status', 'Last Checked', 'By']];
+            utilities.forEach(u => {
+                utilsData.push(['Utility', u.name, u.status.toUpperCase(), u.lastCheck ? new Date(u.lastCheck).toLocaleDateString('en-ZA') : 'Never', u.lastBy || '-']);
+            });
+            utilsData.push([], ['Type', 'Item', 'Quantity', 'Min Level', 'Status']);
+            stockItems.forEach(s => {
+                utilsData.push(['Stock', s.name, s.qty, s.min, s.qty <= s.min ? 'LOW - REORDER' : 'OK']);
+            });
+            const ws4 = XLSX.utils.aoa_to_sheet(utilsData);
+            ws4['!cols'] = [{ wch: 10 }, { wch: 20 }, { wch: 12 }, { wch: 14 }, { wch: 14 }];
+            XLSX.utils.book_append_sheet(wb, ws4, 'Utilities & Stock');
+
+            XLSX.writeFile(wb, fileName);
+        }
+
+        // ============================================
+        // 🔒 HTML ESCAPE
+        // ============================================
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ============================================
+        // 🔧 MODAL CLOSE
+        // ============================================
+        document.getElementById('editModal').addEventListener('click', function (e) {
+            if (e.target === this) closeModal();
+        });
+
+        // ============================================
+        // 🚀 START
+        // ============================================
+        init();
+    </script>
+</body>
+
+</html>
